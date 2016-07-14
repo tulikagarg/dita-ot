@@ -206,6 +206,7 @@ public final class GenListModuleReader extends AbstractXMLFilter {
     public void setPrimaryDitamap(final URI primaryDitamap) {
         assert primaryDitamap.isAbsolute();
         this.primaryDitamap = primaryDitamap;
+        this.rootDir = primaryDitamap.resolve(".");
     }
 
     /**
@@ -270,6 +271,15 @@ public final class GenListModuleReader extends AbstractXMLFilter {
     }
 
     /**
+     * Get copy-to map.
+     *
+     * @return map of copy-to target to souce
+     */
+    public Map<URI, URI> getCopytoMap() {
+        return copytoMap;
+    }
+
+    /**
      * Get the href target.
      * 
      * @return Returns the hrefTargets.
@@ -316,15 +326,6 @@ public final class GenListModuleReader extends AbstractXMLFilter {
             res.add(r.filename);
         }
         return res;
-    }
-
-    /**
-     * Set processing input directory absolute path.
-     * 
-     * @param inputDir absolute path to base directory
-     */
-    public void setInputDir(final URI inputDir) {
-        this.rootDir = inputDir;
     }
 
     /**
@@ -631,9 +632,7 @@ public final class GenListModuleReader extends AbstractXMLFilter {
         if (ATTRIBUTE_NAME_HREF.equals(attrName)) {
             hasHref = true;
             // Collect non-conref and non-copyto targets
-            if ((atts.getValue(ATTRIBUTE_NAME_COPY_TO) == null
-                        || (atts.getValue(ATTRIBUTE_NAME_CHUNK) != null && atts.getValue(ATTRIBUTE_NAME_CHUNK).contains(CHUNK_TO_CONTENT)))
-                    && (followLinks()
+            if ((followLinks()
                         || (TOPIC_IMAGE.matches(attrClass) || DITAVAREF_D_DITAVALREF.matches(attrClass)))) {
                 nonConrefCopytoTargets.add(new Reference(filename, attrFormat));
             }
@@ -651,30 +650,29 @@ public final class GenListModuleReader extends AbstractXMLFilter {
                     }
                 }
             } else if (ATTRIBUTE_NAME_COPY_TO.equals(attrName)) {
-                final URI href = toURI(atts.getValue(ATTRIBUTE_NAME_HREF));
-                if (href != null) {
-                    if (href.toString().isEmpty()) {
+                final URI copyTo = toURI(atts.getValue(ATTRIBUTE_NAME_HREF));
+                if (copyTo != null) {
+                    if (copyTo.toString().isEmpty()) {
                         logger.warn("Copy-to task [href=\"\" copy-to=\"" + filename + "\"] was ignored.");
                     } else {
-                        final URI value = stripFragment(currentDir.resolve(href));
+                        final URI value = stripFragment(currentDir.resolve(copyTo));
                         if (copytoMap.get(filename) != null) {
                             if (!value.equals(copytoMap.get(filename))) {
-                                logger.warn(MessageUtils.getInstance().getMessage("DOTX065W", href.toString(), filename.toString()).toString());
+                                logger.warn(MessageUtils.getInstance().getMessage("DOTX065W", copyTo.toString(), filename.toString()).toString());
                             }
                             ignoredCopytoSourceSet.add(value);
-                        } else if (!(atts.getValue(ATTRIBUTE_NAME_CHUNK) != null && atts.getValue(ATTRIBUTE_NAME_CHUNK).contains(
-                                CHUNK_TO_CONTENT))) {
+                        } else {
                             copytoMap.put(filename, value);
                         }
                     }
                 }
 
-                final URI pathWithoutID = stripFragment(currentDir.resolve(attrValue));
-                if (chunkLevel > 0 && chunkToNavLevel == 0 && topicGroupLevel == 0) {
-                    chunkTopicSet.add(pathWithoutID);
-                } else {
-                    hrefTopicSet.add(pathWithoutID);
-                }
+//                final URI pathWithoutID = stripFragment(currentDir.resolve(attrValue));
+//                if (chunkLevel > 0 && chunkToNavLevel == 0 && topicGroupLevel == 0) {
+//                    chunkTopicSet.add(pathWithoutID);
+//                } else {
+//                    hrefTopicSet.add(pathWithoutID);
+//                }
             }
         }
     }

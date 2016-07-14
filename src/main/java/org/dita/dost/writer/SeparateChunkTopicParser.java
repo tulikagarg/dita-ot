@@ -29,15 +29,14 @@ import java.util.Collection;
 import static org.dita.dost.module.GenMapAndTopicListModule.ELEMENT_STUB;
 import static org.dita.dost.reader.ChunkMapReader.*;
 import static org.dita.dost.util.Constants.*;
+import static org.dita.dost.util.StringUtils.split;
 import static org.dita.dost.util.URLUtils.*;
-import static org.dita.dost.util.FileUtils.*;
-import static org.dita.dost.util.XMLUtils.getDocumentBuilder;
-import static org.dita.dost.util.XMLUtils.getXMLReader;
+import static org.dita.dost.util.XMLUtils.*;
 
 /**
- * ChunkTopicParser class, writing chunking content into relative topic files
- * and then update list. Not reusable and not thread-safe.
- * 
+ * Split topic into multiple files for {@code by-topic} chunking.
+ * Not reusable and not thread-safe.
+ * <p>
  * <p>
  * TODO: Refactor to be a SAX filter.
  * </p>
@@ -61,15 +60,15 @@ public final class SeparateChunkTopicParser extends AbstractChunkTopicParser {
     }
 
     @Override
-    public void write(final File fileDir) throws DITAOTException {
+    public void write(final URI fileDir) throws DITAOTException {
         // pass map's directory path
-        filePath = fileDir.toURI();
+        filePath = fileDir;
         final URI hrefValue = toURI(getValue(rootTopicref, ATTRIBUTE_NAME_HREF));
         final URI copytoValue = toURI(getValue(rootTopicref, ATTRIBUTE_NAME_COPY_TO));
         final String scopeValue = getCascadeValue(rootTopicref, ATTRIBUTE_NAME_SCOPE);
         // Chimera path, has fragment
         URI parseFilePath;
-        final Collection<String> chunkValue = split(getValue(rootTopicref,ATTRIBUTE_NAME_CHUNK));
+        final Collection<String> chunkValue = split(getValue(rootTopicref, ATTRIBUTE_NAME_CHUNK));
         final String processRoleValue = getCascadeValue(rootTopicref, ATTRIBUTE_NAME_PROCESSING_ROLE);
         boolean dotchunk = false;
 
@@ -253,10 +252,11 @@ public final class SeparateChunkTopicParser extends AbstractChunkTopicParser {
 
     /**
      * get the document node of a topic file.
+     *
      * @param absolutePathToFile topic file
      * @return element.
      */
-    private Element getTopicDoc(final URI absolutePathToFile){
+    private Element getTopicDoc(final URI absolutePathToFile) {
         final DocumentBuilder builder = getDocumentBuilder();
         try {
             final Document doc = builder.parse(absolutePathToFile.toString());

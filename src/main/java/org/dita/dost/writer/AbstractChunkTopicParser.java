@@ -8,14 +8,13 @@
  */
 package org.dita.dost.writer;
 
-import static org.dita.dost.writer.ImageMetadataFilter.*;
-import static javax.xml.XMLConstants.*;
-
 import org.dita.dost.exception.DITAOTException;
 import org.dita.dost.module.ChunkModule.ChunkFilenameGenerator;
-import org.dita.dost.util.DitaClass;
 import org.dita.dost.util.TopicIdParser;
-import org.w3c.dom.*;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.Text;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
@@ -25,25 +24,32 @@ import java.io.*;
 import java.net.URI;
 import java.util.*;
 
+import static javax.xml.XMLConstants.XMLNS_ATTRIBUTE;
 import static org.dita.dost.reader.ChunkMapReader.*;
 import static org.dita.dost.util.Constants.*;
+import static org.dita.dost.util.FileUtils.isAbsolutePath;
 import static org.dita.dost.util.URLUtils.*;
-import static org.dita.dost.util.FileUtils.*;
 import static org.dita.dost.util.XMLUtils.*;
+import static org.dita.dost.writer.ImageMetadataFilter.DITA_OT_NS;
+import static org.dita.dost.writer.ImageMetadataFilter.DITA_OT_PREFIX;
 
 /**
  * ChunkTopicParser class, writing chunking content into relative topic files
  * and then update list. Not reusable and not thread-safe.
- * 
+ * <p>
  * <p>
  * TODO: Refactor to be a SAX filter.
  * </p>
  */
 public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
 
-    /** Keys and values are absolute chimera paths, i.e. systems paths with fragments */
+    /**
+     * Keys and values are absolute chimera paths, i.e. systems paths with fragments
+     */
     LinkedHashMap<URI, URI> changeTable = null;
-    /** Keys and values are absolute chimera paths, i.e. systems paths with fragments */
+    /**
+     * Keys and values are absolute chimera paths, i.e. systems paths with fragments
+     */
     Map<URI, URI> conflictTable = null;
 
     Element rootTopicref = null;
@@ -51,7 +57,9 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
     Element topicDoc = null;
 
     private final boolean separate;
-    /** Input file's parent absolute directory path. */
+    /**
+     * Input file's parent absolute directory path.
+     */
     URI filePath = null;
 
     URI currentParsingFile = null;
@@ -105,14 +113,19 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
         this.separate = separate;
     }
 
-    abstract public void write(final File filename) throws DITAOTException;
+    abstract public void write(final URI filename) throws DITAOTException;
+
+    @Override
+    public void write(final File fileDir) throws DITAOTException {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Set up the class.
      *
-     * @param changeTable changeTable
+     * @param changeTable   changeTable
      * @param conflictTable conflictTable
-     * @param rootTopicref chunking topicref
+     * @param rootTopicref  chunking topicref
      */
     public void setup(final LinkedHashMap<URI, URI> changeTable, final Map<URI, URI> conflictTable,
                       final Element rootTopicref,
@@ -158,7 +171,7 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
             if (includelevel >= 0) {
                 try {
                     writeEndElement(output, qName);
-                } catch(final IOException e) {
+                } catch (final IOException e) {
                     logger.error(e.getMessage(), e);
                 }
             }
@@ -233,17 +246,17 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
     @Override
     public void startElement(final String uri, final String localName, final String qName, final Attributes atts)
             throws SAXException {
-        final String classValue = atts.getValue(ATTRIBUTE_NAME_CLASS);
-        final String idValue = atts.getValue(ATTRIBUTE_NAME_ID);
+        final String cls = atts.getValue(ATTRIBUTE_NAME_CLASS);
+        final String id = atts.getValue(ATTRIBUTE_NAME_ID);
 
         if (skip && skipLevel > 0) {
             skipLevel++;
         }
 
         try {
-            if (TOPIC_TOPIC.matches(classValue)) {
+            if (TOPIC_TOPIC.matches(cls)) {
                 topicSpecSet.add(qName);
-                final String id = atts.getValue(ATTRIBUTE_NAME_ID);
+//                final String id = atts.getValue(ATTRIBUTE_NAME_ID);
                 // search node by id.
                 final Element topic = searchForNode(topicDoc, id, ATTRIBUTE_NAME_ID, TOPIC_TOPIC);
 
@@ -252,7 +265,7 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
                     // chunk="by-topic" and next topic element found
                     outputStack.push(output);
                     outputFileNameStack.push(outputFile);
-                    outputFile = generateOutputFilename(idValue);
+                    outputFile = generateOutputFilename(id);
                     output = new OutputStreamWriter(new FileOutputStream(new File(outputFile)), UTF8);
                     // write xml header and workdir PI to the new generated file
                     writeStartDocument(output);
@@ -263,8 +276,8 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
                     }
                     writeProcessingInstruction(output, PI_WORKDIR_TARGET_URI, filePath.toString());
                     changeTable.put(outputFile, outputFile);
-                    if (idValue != null) {
-                        changeTable.put(setFragment(currentParsingFile, idValue), setFragment(outputFile, idValue));
+                    if (id != null) {
+                        changeTable.put(setFragment(currentParsingFile, id), setFragment(outputFile, id));
                     } else {
                         changeTable.put(currentParsingFile, outputFile);
                     }
@@ -298,13 +311,13 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
                         include = false;
                         skipLevel = 1;
                         skip = true;
-                    } else  {
+                    } else {
                         // if select method is "select-document" or "select-branch"
                         // and current topic is the nested topic in target topic.
                         // if file name has been changed, add an entry in changeTable
                         if (!currentParsingFile.equals(outputFile)) {
-                            if (idValue != null) {
-                                changeTable.put(setFragment(currentParsingFile, idValue), setFragment(outputFile, idValue));
+                            if (id != null) {
+                                changeTable.put(setFragment(currentParsingFile, id), setFragment(outputFile, id));
                             } else {
                                 changeTable.put(stripFragment(currentParsingFile), stripFragment(outputFile));
                             }
@@ -312,7 +325,7 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
                     }
                 } else if (skip) {
                     skipLevel = 1;
-                } else if (idValue != null && (idValue.equals(targetTopicId) || startFromFirstTopic)) {
+                } else if (id != null && (id.equals(targetTopicId) || startFromFirstTopic)) {
                     // if the target topic has not been found and current topic is the target topic
                     include = true;
                     includelevel = 0;
@@ -320,7 +333,7 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
                     skipLevel = 0;
                     startFromFirstTopic = false;
                     if (!currentParsingFile.equals(outputFile)) {
-                        changeTable.put(setFragment(currentParsingFile, idValue), setFragment(outputFile, idValue));
+                        changeTable.put(setFragment(currentParsingFile, id), setFragment(outputFile, id));
                     }
                 }
             }
@@ -335,9 +348,9 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
         }
     }
 
-    private URI generateOutputFilename(final String idValue) {
-        URI newFileName = filePath.resolve(idValue + FILE_EXTENSION_DITA);
-        if (idValue == null || new File(newFileName).exists()) {
+    private URI generateOutputFilename(final String id) {
+        URI newFileName = filePath.resolve(id + FILE_EXTENSION_DITA);
+        if (id == null || new File(newFileName).exists()) {
             final URI t = newFileName;
             newFileName = filePath.resolve(generateFilename());
             conflictTable.put(newFileName, t);
@@ -346,31 +359,31 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
     }
 
     private Attributes processAttributes(final Attributes atts) {
-        final String classValue = atts.getValue(ATTRIBUTE_NAME_CLASS);
+        final String cls = atts.getValue(ATTRIBUTE_NAME_CLASS);
         final AttributesImpl resAtts = new AttributesImpl(atts);
         for (int i = 0; i < resAtts.getLength(); i++) {
             final String attrName = resAtts.getQName(i);
             String attrValue = resAtts.getValue(i);
 
             if (ATTRIBUTE_NAME_ID.equals(attrName)) {
-                final String idValue = attrValue;
-                if (TOPIC_TOPIC.matches(classValue)) {
+                final String id = attrValue;
+                if (TOPIC_TOPIC.matches(cls)) {
                     // change topic @id if there are conflicts.
                     if (topicID.contains(attrValue)) {
-                        final String oldAttrValue = attrValue;
+                        final String oldAttr = attrValue;
                         attrValue = chunkFilenameGenerator.generateID();
                         topicID.add(attrValue);
 
-                        final URI tmpValId = changeTable.get(setFragment(currentParsingFile, idValue));
-                        if (tmpValId != null && tmpValId.equals(setFragment(outputFile, idValue))) {
-                            changeTable.put(setFragment(currentParsingFile, idValue), setFragment(outputFile, attrValue));
+                        final URI tmpId = changeTable.get(setFragment(currentParsingFile, id));
+                        if (tmpId != null && tmpId.equals(setFragment(outputFile, id))) {
+                            changeTable.put(setFragment(currentParsingFile, id), setFragment(outputFile, attrValue));
                         }
 
                         final URI tmpVal = changeTable.get(currentParsingFile);
-                        if (tmpVal != null && tmpVal.equals(setFragment(outputFile, idValue))) {
+                        if (tmpVal != null && tmpVal.equals(setFragment(outputFile, id))) {
                             changeTable.put(currentParsingFile, setFragment(outputFile, attrValue));
                         }
-                        currentParsingFileTopicIDChangeTable.put(oldAttrValue, attrValue);
+                        currentParsingFileTopicIDChangeTable.put(oldAttr, attrValue);
                     } else {
                         topicID.add(attrValue);
                     }
@@ -399,10 +412,10 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
             }
             resAtts.setValue(i, attrValue);
         }
-        if (TOPIC_TOPIC.matches(classValue) && resAtts.getValue(ATTRIBUTE_NAMESPACE_PREFIX_DITAARCHVERSION) == null) {
+        if (TOPIC_TOPIC.matches(cls) && resAtts.getValue(ATTRIBUTE_NAMESPACE_PREFIX_DITAARCHVERSION) == null) {
             addOrSetAttribute(resAtts, ATTRIBUTE_NAMESPACE_PREFIX_DITAARCHVERSION, DITA_NAMESPACE);
         }
-        if (TOPIC_TOPIC.matches(classValue) && resAtts.getValue(XMLNS_ATTRIBUTE + ":" + DITA_OT_PREFIX) == null) {
+        if (TOPIC_TOPIC.matches(cls) && resAtts.getValue(XMLNS_ATTRIBUTE + ":" + DITA_OT_PREFIX) == null) {
             addOrSetAttribute(resAtts, XMLNS_ATTRIBUTE + ":" + DITA_OT_PREFIX, DITA_OT_NS);
         }
         return resAtts;
@@ -410,14 +423,16 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
 
     /**
      * Generate file name.
-     * 
+     *
      * @return generated file name
      */
     String generateFilename() {
-        return chunkFilenameGenerator.generateFilename("Chunk", FILE_EXTENSION_DITA);
+        return chunkFilenameGenerator.generateFilename(CHUNK_PREFIX, FILE_EXTENSION_DITA);
     }
 
-    /** Check whether href needs to be updated */
+    /**
+     * Check whether href needs to be updated
+     */
     private boolean checkHREF(final Attributes atts) {
         if (atts.getValue(ATTRIBUTE_NAME_HREF) == null) {
             return false;
@@ -427,7 +442,7 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
 
     /**
      * Create topicmeta node.
-     * 
+     *
      * @param topic document element of a topic file.
      * @return created and populated topicmeta
      */
@@ -486,12 +501,11 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
     }
 
     /**
-     *
      * Get the first topic id from the given dita file.
      *
      * @param absolutePathToFile The absolute path to a dita file.
      * @return The first topic id from the given dita file if success, otherwise
-     *         {@code null} string is returned.
+     * {@code null} string is returned.
      */
     String getFirstTopicId(final String absolutePathToFile) {
         assert new File(absolutePathToFile).isAbsolute();
@@ -513,113 +527,6 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
             return null;
         }
         return firstTopicId.toString();
-    }
-
-    // DOM utility methods
-
-    private static final List<String> excludeList;
-    static {
-        final List<String> el = new ArrayList<>();
-        el.add(TOPIC_INDEXTERM.toString());
-        el.add(TOPIC_DRAFT_COMMENT.toString());
-        el.add(TOPIC_REQUIRED_CLEANUP.toString());
-        el.add(TOPIC_DATA.toString());
-        el.add(TOPIC_DATA_ABOUT.toString());
-        el.add(TOPIC_UNKNOWN.toString());
-        el.add(TOPIC_FOREIGN.toString());
-        excludeList = Collections.unmodifiableList(el);
-    }
-
-    /**
-     * Search for the special kind of node by specialized value.
-     * @param root place may have the node.
-     * @param searchKey keyword for search.
-     * @param attrName attribute name for search.
-     * @param classValue class value for search.
-     * @return element.
-     */
-    private Element searchForNode(final Element root, final String searchKey, final String attrName,
-                                  final DitaClass classValue) {
-        if (root == null) {
-            return null;
-        }
-        final Queue<Element> queue = new LinkedList<>();
-        queue.offer(root);
-        while (!queue.isEmpty()) {
-            final Element pe = queue.poll();
-            final NodeList pchildrenList = pe.getChildNodes();
-            for (int i = 0; i < pchildrenList.getLength(); i++) {
-                final Node node = pchildrenList.item(i);
-                if (node.getNodeType() == Node.ELEMENT_NODE) {
-                    queue.offer((Element) node);
-                }
-            }
-            if (pe.getAttribute(ATTRIBUTE_NAME_CLASS) == null || !classValue.matches(pe)) {
-                continue;
-            }
-            final Attr value = pe.getAttributeNode(attrName);
-            if (value == null) {
-                continue;
-            }
-            if (searchKey.equals(value.getValue())){
-                return pe;
-            }
-        }
-        return null;
-    }
-    
-    /**
-     * Get text value of a node.
-     *
-     * @param root root node
-     * @return text value
-     */
-    public static String getText(final Node root) {
-        if (root == null) {
-            return "";
-        } else {
-            final StringBuilder result = new StringBuilder(1024);
-            if (root.hasChildNodes()) {
-                final NodeList list = root.getChildNodes();
-                for (int i = 0; i < list.getLength(); i++) {
-                    final Node childNode = list.item(i);
-                    if (childNode.getNodeType() == Node.ELEMENT_NODE) {
-                        final Element e = (Element)childNode;
-                        final String value = e.getAttribute(ATTRIBUTE_NAME_CLASS);
-                        if (!excludeList.contains(value)) {
-                            final String s = getText(e);
-                            result.append(s);
-                        }
-                    } else if(childNode.getNodeType() == Node.TEXT_NODE) {
-                        result.append(childNode.getNodeValue());
-                    }
-                }
-            } else if(root.getNodeType() == Node.TEXT_NODE) {
-                result.append(root.getNodeValue());
-            }
-            return result.toString();
-        }
-    }
-
-    /**
-     * Get specific element node from child nodes.
-     *
-     * @param element parent node
-     * @param classValue DITA class to search for
-     * @return element node, {@code null} if not found
-     */
-    public static Element getElementNode(final Element element, final DitaClass classValue) {
-        final NodeList list = element.getChildNodes();
-        for (int i = 0; i < list.getLength(); i++) {
-            final Node node = list.item(i);
-            if (node.getNodeType() == Node.ELEMENT_NODE) {
-                final Element child = (Element) node;
-                if (classValue.matches(child)) {
-                    return child;
-                }
-            }
-        }
-        return null;
     }
 
     // SAX serialization methods
@@ -665,7 +572,7 @@ public abstract class AbstractChunkTopicParser extends AbstractXMLWriter {
     /**
      * Convenience method to write a processing instruction.
      *
-     * @param name PI name
+     * @param name  PI name
      * @param value PI value, may be {@code null}
      */
     void writeProcessingInstruction(final Writer output, final String name, final String value)

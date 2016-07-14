@@ -23,7 +23,6 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.stream.XMLOutputFactory;
@@ -166,6 +166,7 @@ public final class GenMapAndTopicListModule extends AbstractPipelineModuleImpl {
     private final Set<URI> schemeSet;
     /** Subject scheme usage. Key is absolute file path, value is set of applicable subject schemes. */
     private final Map<URI, Set<URI>> schemeDictionary;
+    private final Map<URI, URI> copyTo = new HashMap<>();
     private String transtype;
 
     /** use grammar pool cache */
@@ -242,7 +243,6 @@ public final class GenMapAndTopicListModule extends AbstractPipelineModuleImpl {
     private void initFilters() {
         listFilter = new GenListModuleReader();
         listFilter.setLogger(logger);
-        listFilter.setInputDir(rootFile.resolve("."));
         listFilter.setPrimaryDitamap(rootFile);
         listFilter.setJob(job);
         
@@ -519,7 +519,13 @@ public final class GenMapAndTopicListModule extends AbstractPipelineModuleImpl {
             categorizeReferenceFile(file);
             updateUplevels(file.filename);
         }
+        for (final Map.Entry<URI, URI> e : listFilter.getCopytoMap().entrySet()) {
+            final URI source = e.getValue();
+            final URI target = e.getKey();
+            copyTo.put(target, source);
+            updateUplevels(target);
 
+        }
         schemeSet.addAll(listFilter.getSchemeRefSet());
 
         // collect key definitions
@@ -695,65 +701,6 @@ public final class GenMapAndTopicListModule extends AbstractPipelineModuleImpl {
     }
 
     /**
-     * Escape regular expression special characters.
-     * 
-     * @param value input
-     * @return input with regular expression special characters escaped
-     */
-    private static String escapeRegExp(final String value) {
-        final StringBuilder buff = new StringBuilder();
-        if (value == null || value.length() == 0) {
-            return "";
-        }
-        int index = 0;
-        // $( )+.[^{\
-        while (index < value.length()) {
-            final char current = value.charAt(index);
-            switch (current) {
-            case '.':
-                buff.append("\\.");
-                break;
-                // case '/':
-                // case '|':
-            case '\\':
-                buff.append("[\\\\|/]");
-                break;
-            case '(':
-                buff.append("\\(");
-                break;
-            case ')':
-                buff.append("\\)");
-                break;
-            case '[':
-                buff.append("\\[");
-                break;
-            case ']':
-                buff.append("\\]");
-                break;
-            case '{':
-                buff.append("\\{");
-                break;
-            case '}':
-                buff.append("\\}");
-                break;
-            case '^':
-                buff.append("\\^");
-                break;
-            case '+':
-                buff.append("\\+");
-                break;
-            case '$':
-                buff.append("\\$");
-                break;
-            default:
-                buff.append(current);
-            }
-            index++;
-        }
-        return buff.toString();
-    }
-
-    /**
      * Parse filter file
      * 
      * @return configured filter utility
@@ -819,7 +766,7 @@ public final class GenMapAndTopicListModule extends AbstractPipelineModuleImpl {
         final File inputfile = new File(job.tempDir, USER_INPUT_FILE_LIST_FILE);
         writeListFile(inputfile, relativeRootFile.toString());
 
-        job.setProperty("tempdirToinputmapdir.relative.value", escapeRegExp(getPrefix(relativeRootFile)));
+        job.setProperty("tempdirToinputmapdir.relative.value", StringUtils.escapeRegExp(getPrefix(relativeRootFile)));
         job.setProperty("uplevels", getLevelsPath(rootTemp));
 
         resourceOnlySet.addAll(listFilter.getResourceOnlySet());
@@ -896,10 +843,24 @@ public final class GenMapAndTopicListModule extends AbstractPipelineModuleImpl {
         
         addFlagImagesSetToProperties(job, relFlagImagesSet);
 
+        final Map<URI, URI> filteredCopyTo = filterConflictingCopyTo(copyTo, fileinfos.values());
+
         for (final FileInfo fs: fileinfos.values()) {
             if (!failureList.contains(fs.src)) {
-                job.add(fs);
+                final URI src = filteredCopyTo.get(fs.src);
+                // correct copy-to
+                if (src != null) {
+                    final FileInfo corr = new FileInfo.Builder(fs).src(src).build();
+                    job.add(corr);
+                } else {
+                    job.add(fs);
+                }
             }
+        }
+        for (final URI target : filteredCopyTo.keySet()) {
+            final URI tmp = tempFileNameScheme.generateTempFileName(target);
+            final FileInfo fi = new FileInfo.Builder().result(target).uri(tmp).build();
+            job.add(fi);
         }
 
         try {
@@ -922,6 +883,17 @@ public final class GenMapAndTopicListModule extends AbstractPipelineModuleImpl {
         writeExportAnchors();
 
         KeyDef.writeKeydef(new File(job.tempDir, SUBJECT_SCHEME_KEYDEF_LIST_FILE), addFilePrefix(schemekeydefMap.values()));
+    }
+
+    /** Filter copy-to where target is used directly. */
+    private Map<URI, URI> filterConflictingCopyTo( final Map<URI, URI> copyTo, final Collection<FileInfo> fileInfos) {
+        final Set<URI> fileinfoTargets = fileInfos.stream()
+                .filter(fi -> fi.src.equals(fi.result))
+                .map(fi -> fi.result)
+                .collect(Collectors.toSet());
+        return copyTo.entrySet().stream()
+                .filter(e -> !fileinfoTargets.contains(e.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /**

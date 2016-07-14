@@ -12,6 +12,7 @@ import static org.apache.commons.io.FileUtils.*;
 import static org.dita.dost.util.Constants.*;
 import static org.dita.dost.util.URLUtils.*;
 import static org.dita.dost.util.FileUtils.*;
+import static org.dita.dost.util.XMLUtils.getDocumentBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +35,7 @@ import org.xml.sax.SAXException;
 
 /**
  * The chunking module class.
- *
+ * <p>
  * Starting from map files, it parses and processes chunk attribute, writes out the chunked
  * results and finally updates reference pointing to chunked topics in other topics.
  */
@@ -49,15 +50,8 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
     private final Map<URI, String> relativePath2fix = new HashMap<>();
 
     /**
-     * Constructor.
-     */
-    public ChunkModule() {
-        super();
-    }
-
-    /**
      * Entry point of chunk module.
-     * 
+     *
      * @param input Input parameters and resources.
      * @return null
      * @throws DITAOTException exception
@@ -108,7 +102,7 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
         if (changeTable.isEmpty()) {
             return false;
         }
-        for (Map.Entry<URI, URI> e: changeTable.entrySet()) {
+        for (Map.Entry<URI, URI> e : changeTable.entrySet()) {
             if (!e.getKey().equals(e.getValue())) {
                 return true;
             }
@@ -124,7 +118,7 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
      * @throws DITAOTException if reading ditamap fails
      */
     private boolean isEclipseMap(final URI mapFile) throws DITAOTException {
-        final DocumentBuilder builder = XMLUtils.getDocumentBuilder();
+        final DocumentBuilder builder = getDocumentBuilder();
         Document doc;
         try {
             doc = builder.parse(mapFile.toString());
@@ -206,7 +200,7 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
                 oldTopicList.remove(t);
             }
         }
-        
+
         final Set<URI> chunkedTopicSet = new LinkedHashSet<>(128);
         final Set<URI> chunkedDitamapSet = new LinkedHashSet<>(128);
         final Set<URI> ditamapList = new HashSet<>();
@@ -277,7 +271,7 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
                         try {
                             logger.debug("Delete " + target);
                             deleteQuietly(new File(target));
-                            logger.debug("Mpve " + from + " to " + target);
+                            logger.debug("Move " + from + " to " + target);
                             moveFile(new File(from), new File(target));
                         } catch (final IOException e) {
                             logger.error("Failed to replace chunk topic: " + e.getMessage(), e);
@@ -304,14 +298,14 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
         all.addAll(ditamapList);
         all.addAll(chunkedDitamapSet);
         all.addAll(chunkedTopicSet);
-        
+
         // remove redundant topic information
-        for (final URI file: oldTopicList) {
+        for (final URI file : oldTopicList) {
             if (!all.contains(file)) {
                 job.remove(job.getOrCreateFileInfo(file));
             }
         }
-        
+
         for (final URI file : topicList) {
             // FIXME
             final FileInfo ff = job.getOrCreateFileInfo(stripFragment(file));
@@ -364,8 +358,8 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
 
         /**
          * Generate file name
-         * 
-         * @param prefix file name prefix
+         *
+         * @param prefix    file name prefix
          * @param extension file extension
          * @return generated file name
          */
@@ -373,7 +367,7 @@ final public class ChunkModule extends AbstractPipelineModuleImpl {
 
         /**
          * Generate ID.
-         * 
+         *
          * @return generated ID
          */
         String generateID();

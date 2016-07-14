@@ -61,6 +61,7 @@ public final class Job {
     private static final String ATTRIBUTE_SRC = "src";
     private static final String ATTRIBUTE_URI = "uri";
     private static final String ATTRIBUTE_PATH = "path";
+    private static final String ATTRIBUTE_RESULT = "result";
     private static final String ATTRIBUTE_FORMAT = "format";
     private static final String ATTRIBUTE_CHUNKED = "chunked";
     private static final String ATTRIBUTE_HAS_CONREF = "has-conref";
@@ -234,6 +235,10 @@ public final class Job {
                     } else {
                         i = new FileInfo(src, toURI(path), path);
                     }
+                    i.result = toURI(atts.getValue(ATTRIBUTE_RESULT));
+                    if (i.result == null) {
+                        i.result = src;
+                    }
                     i.format = atts.getValue(ATTRIBUTE_FORMAT);
                     try {
                         for (Map.Entry<String, Field> e : attrToFieldMap.entrySet()) {
@@ -336,6 +341,9 @@ public final class Job {
                 }
                 out.writeAttribute(ATTRIBUTE_URI, i.uri.toString());
                 out.writeAttribute(ATTRIBUTE_PATH, i.file.getPath());
+                if (i.result != null) {
+                    out.writeAttribute(ATTRIBUTE_RESULT, i.result.toString());
+                }
                 if (i.format != null) {
                 	out.writeAttribute(ATTRIBUTE_FORMAT, i.format);
                 }
@@ -496,11 +504,14 @@ public final class Job {
             return null;
         } else if (files.containsKey(file)) {
             return files.get(file);
-        } else if (file.isAbsolute()) {
+        } else if (file.isAbsolute() && file.toString().startsWith(tempDir.toURI().toString())) {
             final URI relative = getRelativePath(jobFile.toURI(), file);
             return files.get(relative);
         } else {
-            return null;
+            return files.values().stream()
+                    .filter(fileInfo -> file.equals(fileInfo.src) || file.equals(fileInfo.result))
+                    .findFirst()
+                    .orElse(null);
         }
     }
     
@@ -511,8 +522,11 @@ public final class Job {
      */
     public FileInfo getOrCreateFileInfo(final URI file) {
         assert file.getFragment() == null;
-        final URI f = file.normalize();
-        FileInfo i = files.get(f); 
+        URI f = file.normalize();
+        if (f.isAbsolute()) {
+            f = tempDir.toURI().relativize(f);
+        }
+        FileInfo i = getFileInfo(file);
         if (i == null) {
             i = new FileInfo(f);
             files.put(i.uri, i);
@@ -537,11 +551,13 @@ public final class Job {
     public static final class FileInfo {
         
         /** Absolute source URI. */
-        public final URI src;
+        public URI src;
         /** File URI. */
         public final URI uri;
         /** File path. */
         public final File file;
+        /** Absolute result URI. */
+        public URI result;
         /** File format. */
     	public String format;
     	/** File has a conref. */
@@ -574,16 +590,18 @@ public final class Job {
         public boolean isOutDita;
         
         FileInfo(final URI src, final URI uri, final File file) {
-            if (src == null && uri == null && file == null) throw new IllegalArgumentException(new NullPointerException());
+            if (uri == null && file == null) throw new IllegalArgumentException(new NullPointerException());
             this.src = src;
             this.uri = uri != null ? uri : toURI(file);
             this.file = uri != null ? toFile(uri) : file;
+            this.result = src;
         }
         FileInfo(final URI uri) {
             if (uri == null) throw new IllegalArgumentException(new NullPointerException());
             this.src = null;
             this.uri = uri;
             this.file = toFile(uri);
+            this.result = src;
         }
         @Deprecated
         FileInfo(final File file) {
@@ -591,12 +609,15 @@ public final class Job {
             this.src = null;
             this.uri =  toURI(file);
             this.file = file;
+            this.result = src;
         }
         
         @Override
         public String toString() {
             return "FileInfo{" +
-                    "uri=" + uri +
+                    "src=" + src +
+                    ", result=" + result +
+                    ", uri=" + uri +
                     ", file=" + file +
                     ", format='" + format + '\'' +
                     ", hasConref=" + hasConref +
@@ -627,6 +648,7 @@ public final class Job {
             private URI src;
             private URI uri;
             private File file;
+            private URI result;
             private String format;
             private boolean hasConref;
             private boolean isChunked;
@@ -648,6 +670,7 @@ public final class Job {
                 src = orig.src;
                 uri = orig.uri;
                 file = orig.file;
+                result = orig.result;
                 format = orig.format;
                 hasConref = orig.hasConref;
                 isChunked = orig.isChunked;
@@ -672,6 +695,7 @@ public final class Job {
                 if (orig.src != null) src = orig.src;
                 if (orig.uri != null) uri = orig.uri;
                 if (orig.file != null) file = orig.file;
+                if (orig.result != null) result = orig.result;
                 if (orig.format != null) format = orig.format;
                 if (orig.hasConref) hasConref = orig.hasConref;
                 if (orig.isChunked) isChunked = orig.isChunked;
@@ -690,9 +714,10 @@ public final class Job {
                 return this;
             }
             
-            public Builder src(final URI src) { this.src = src; return this; }
+            public Builder src(final URI src) { assert src.isAbsolute(); this.src = src; return this; }
             public Builder uri(final URI uri) { this.uri = uri; this.file = null; return this; }
             public Builder file(final File file) { this.file = file; this.uri = null; return this; }
+            public Builder result(final URI result) { assert result.isAbsolute(); this.result = result; return this; }
             public Builder format(final String format) { this.format = format; return this; }
             public Builder hasConref(final boolean hasConref) { this.hasConref = hasConref; return this; }
             public Builder isChunked(final boolean isChunked) { this.isChunked = isChunked; return this; }
@@ -710,10 +735,13 @@ public final class Job {
             public Builder isOutDita(final boolean isOutDita) { this.isOutDita = isOutDita; return this; }
 
             public FileInfo build() {
-                if (src == null && uri == null && file == null) {
-                    throw new IllegalStateException("src, uri, and file may not be null");
+                if (uri == null && file == null) {
+                    throw new IllegalStateException("uri and file may not be null");
                 }
                 final FileInfo fi = new FileInfo(src, uri, file);
+                if (result != null) {
+                    fi.result = result;
+                }
                 fi.format = format;
                 fi.hasConref = hasConref;
                 fi.isChunked = isChunked;

@@ -9,13 +9,19 @@ import org.dita.dost.pipeline.AbstractPipelineInput;
 import org.dita.dost.util.Job;
 import org.junit.After;
 import org.junit.Before;
-import org.xml.sax.InputSource;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-import static junit.framework.Assert.assertEquals;
 import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
 
 public abstract class AbstractModuleTest {
@@ -23,6 +29,53 @@ public abstract class AbstractModuleTest {
     private final File resourceDir = TestUtils.getResourceDir(getClass());
     private final File expBaseDir = new File(resourceDir, "exp");
     private File tempBaseDir;
+    private final DocumentBuilder builder;
+
+    public AbstractModuleTest() {
+        try {
+            builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        } catch (ParserConfigurationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Document getDocument(final File file) {
+        try {
+            final Document doc = builder.parse(file);
+            doc.normalize();
+            normalizeSpace(doc.getDocumentElement());
+            return doc;
+        } catch (SAXException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void normalizeSpace(final Node node) {
+        switch (node.getNodeType()) {
+            case Node.ELEMENT_NODE:
+                for (final Node n : getChildren(node)) {
+                    normalizeSpace(n);
+                }
+                break;
+            case Node.TEXT_NODE:
+                final String v = node.getNodeValue().replaceAll("\\s+", " ").trim();
+                if (v.isEmpty()) {
+                    node.getParentNode().removeChild(node);
+                } else {
+                    node.setNodeValue(v);
+                }
+                break;
+        }
+    }
+
+    private List<Node> getChildren(final Node node) {
+        final List<Node> res = new ArrayList<>();
+        final NodeList ns = node.getChildNodes();
+        for (int i = 0; i < ns.getLength(); i++) {
+            res.add(ns.item(i));
+        }
+        return res;
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -47,7 +100,7 @@ public abstract class AbstractModuleTest {
             final AbstractPipelineModule chunkModule = getModule(tempDir);
             final Job job = new Job(tempDir);
             chunkModule.setJob(job);
-            final CachingLogger logger = new CachingLogger();
+            final CachingLogger logger = new CachingLogger(true);
             chunkModule.setLogger(logger);
 
             final AbstractPipelineInput input = getAbstractPipelineInput();
@@ -55,9 +108,9 @@ public abstract class AbstractModuleTest {
 
             compare(tempDir, expDir);
 
-            for (Message m : logger.getMessages()) {
-                assertEquals(false, m.level == Message.Level.ERROR);
-            }
+            logger.getMessages().stream()
+                    .filter(m -> m.level == Message.Level.ERROR)
+                    .forEach(m -> System.err.println(m.level + ": " + m.message));
         } catch (final Exception e) {
             throw new RuntimeException(e);
         }
@@ -75,8 +128,10 @@ public abstract class AbstractModuleTest {
             } else if (exp.getName().equals(".job.xml")) {
                 // skip
             } else {
-                assertXMLEqual(new InputSource(exp.toURI().toString()),
-                        new InputSource(new File(actDir, exp.getName()).toURI().toString()));
+                final Document expDoc = getDocument(exp);
+                final Document actDoc = getDocument(new File(actDir, exp.getName()));
+                assertXMLEqual("Comparing " + exp + " to " + new File(actDir, exp.getName()) + ":",
+                        expDoc, actDoc);
             }
         }
     }
