@@ -1,10 +1,10 @@
 /*
  * This file is part of the DITA Open Toolkit project.
- * See the accompanying license.txt file for applicable licenses.
- */
+ *
+ * Copyright 2010 IBM Corporation
+ *
+ * See the accompanying LICENSE file for applicable license.
 
-/*
- * (c) Copyright IBM Corp. 2010 All Rights Reserved.
  */
 package org.dita.dost.util;
 
@@ -468,7 +468,7 @@ public final class URLUtils {
             return file.toURI();
         } else {
             try {
-                return new URI(clean(file.getPath().replace(WINDOWS_SEPARATOR, URI_SEPARATOR), false));
+                return new URI(clean(file.getPath().replace(WINDOWS_SEPARATOR, URI_SEPARATOR).trim(), false));
             } catch (final URISyntaxException e) {
                 throw new IllegalArgumentException(e.getMessage(), e);
             }
@@ -492,7 +492,7 @@ public final class URLUtils {
             return new URI(file);
         } catch (final URISyntaxException e) {
             try {
-                return new URI(clean(file.replace(WINDOWS_SEPARATOR, URI_SEPARATOR), false));
+                return new URI(clean(file.replace(WINDOWS_SEPARATOR, URI_SEPARATOR).trim(), false));
             } catch (final URISyntaxException ex) {
                 throw new IllegalArgumentException(ex.getMessage(), ex);
             }

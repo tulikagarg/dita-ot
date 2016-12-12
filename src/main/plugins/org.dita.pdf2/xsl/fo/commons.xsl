@@ -28,7 +28,7 @@ licensing agreement to the extent that such terms and conditions conflict
 with those set forth herein.
 
 This file is part of the DITA Open Toolkit project.
-See the accompanying license.txt file for applicable licenses.
+See the accompanying LICENSE file for applicable license.
 -->
 
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -458,7 +458,18 @@ See the accompanying license.txt file for applicable licenses.
     </xsl:template>
 
     <xsl:template name="processTopicNotices">
-        <fo:page-sequence master-reference="body-sequence" xsl:use-attribute-sets="page-sequence.notice">
+        <xsl:variable name="atts" as="element()">
+            <xsl:choose>
+                <xsl:when test="key('map-id', ancestor-or-self::*[contains(@class, ' topic/topic ')][1]/@id)/ancestor::*[contains(@class,' bookmap/backmatter ')]">
+                    <dummy xsl:use-attribute-sets="page-sequence.backmatter.notice"/> 
+                </xsl:when>
+                <xsl:otherwise>
+                    <dummy xsl:use-attribute-sets="page-sequence.notice"/> 
+                </xsl:otherwise>
+            </xsl:choose>
+        </xsl:variable>
+        <fo:page-sequence master-reference="body-sequence">
+            <xsl:copy-of select="$atts/@*"/>
             <xsl:call-template name="startPageNumbering"/>
             <xsl:call-template name="insertPrefaceStaticContents"/>
             <fo:flow flow-name="xsl-region-body">

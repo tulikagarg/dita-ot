@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!-- This file is part of the DITA Open Toolkit project hosted on 
-  Sourceforge.net. See the accompanying license.txt file for 
-  applicable licenses.-->
-<!-- (c) Copyright IBM Corp. 2004, 2005 All Rights Reserved. -->
+<!--
+This file is part of the DITA Open Toolkit project.
+
+Copyright 2004, 2005 IBM Corporation
+
+See the accompanying LICENSE file for applicable license.
+-->
 
 <!--
   Standard error message template for DITA processing in XSL. This
@@ -57,7 +60,7 @@
         </xsl:otherwise>
       </xsl:choose>
     </xsl:variable>
-    <xsl:variable name="localclass" select="@class"/>
+    <xsl:variable name="localclass" select="$ctx/@class" as="attribute(class)?"/>
     <xsl:variable name="xtrf" select="$ctx/@xtrf" as="attribute(xtrf)?"/>
     <xsl:variable name="xtrc" select="$ctx/@xtrc" as="attribute(xtrc)?"/>
     <xsl:variable name="debugloc">

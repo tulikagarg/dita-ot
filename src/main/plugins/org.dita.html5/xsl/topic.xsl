@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- This file is part of the DITA Open Toolkit project.
-     See the accompanying license.txt file for applicable licenses. -->
+<!--
+This file is part of the DITA Open Toolkit project.
+See the accompanying LICENSE file for applicable license.
+-->
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:dita-ot="http://dita-ot.sourceforge.net/ns/201007/dita-ot"
@@ -1773,12 +1775,12 @@
     <!-- Revised design with DITA-OT 1.5: include class ancestry if requested; 
          combine user output class with element default, giving priority to the user value. -->
     <xsl:variable name="classes" as="xs:string*"
-                  select="tokenize($ancestry, '/s+'),
+                  select="tokenize($ancestry, '\s+'),
                           $using-output-class,
                           $draft-revs, 
-                          tokenize($outputclass-attribute, '/s+')"/>
+                          tokenize($outputclass-attribute, '\s+')"/>
     <xsl:if test="exists($classes)">
-      <xsl:attribute name="class" select="string-join($classes, ' ')"/>
+      <xsl:attribute name="class" select="string-join(distinct-values($classes), ' ')"/>
     </xsl:if>
   </xsl:template>
     

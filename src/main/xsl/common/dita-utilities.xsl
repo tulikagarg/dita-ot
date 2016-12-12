@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- This file is part of the DITA Open Toolkit project.
-     See the accompanying license.txt file for applicable licenses.-->
-<!-- (c) Copyright IBM Corp. 2004, 2005 All Rights Reserved. -->
+<!--
+This file is part of the DITA Open Toolkit project.
+
+Copyright 2004, 2005 IBM Corporation
+
+See the accompanying LICENSE file for applicable license.
+-->
 
 <!-- Common utilities that can be used by DITA transforms -->
 <xsl:stylesheet version="2.0"
@@ -76,7 +80,8 @@
   <xsl:template name="getVariable">
     <xsl:param name="id" as="xs:string"/>
     <xsl:param name="params" as="node()*"/>
-    <xsl:sequence select="dita-ot:get-variable(., $id, $params)"/>
+    <xsl:param name="ctx" as="node()" select="."/>
+    <xsl:sequence select="dita-ot:get-variable($ctx, $id, $params)"/>
   </xsl:template>
 
   <xsl:template name="findString">
@@ -84,6 +89,7 @@
     <xsl:param name="params" as="node()*"/>
     <xsl:param name="ancestorlang" as="xs:string*"/>
     <xsl:param name="defaultlang" as="xs:string*"/>
+    <xsl:param name="originallang" as="xs:string*" select="$ancestorlang[1]"/>
 
     <xsl:variable name="l" select="($ancestorlang, $defaultlang)[1]" as="xs:string?"/>
     <xsl:choose>
@@ -102,7 +108,7 @@
             <xsl:if test="empty($ancestorlang)">
               <xsl:call-template name="output-message">
                 <xsl:with-param name="id" select="'DOTX001W'"/>
-                <xsl:with-param name="msgparams">%1=<xsl:value-of select="$id"/>;%2=<xsl:call-template name="getLowerCaseLang"/>;%3=<xsl:value-of select="$DEFAULTLANG"/></xsl:with-param>
+                <xsl:with-param name="msgparams">%1=<xsl:value-of select="$id"/>;%2=<xsl:value-of select="$originallang"/>;%3=<xsl:value-of select="$DEFAULTLANG"/></xsl:with-param>
               </xsl:call-template>
             </xsl:if>
           </xsl:when>
@@ -112,6 +118,7 @@
               <xsl:with-param name="params" select="$params"/>
               <xsl:with-param name="ancestorlang" select="$ancestorlang[position() gt 1]"/>
               <xsl:with-param name="defaultlang" select="if (exists($ancestorlang)) then $defaultlang else $defaultlang[position() gt 1]"/>
+              <xsl:with-param name="originallang" select="$originallang"/>
             </xsl:call-template>
           </xsl:otherwise>
         </xsl:choose>
@@ -247,8 +254,8 @@
     <xsl:with-param name="id" select="'DOTX069W'"/>
     <xsl:with-param name="msgparams">%1=parseHrefUptoExtension</xsl:with-param>
   </xsl:call-template>  
-  <xsl:variable name="uptoDot"><xsl:value-of select="substring-before($href,'.')"/></xsl:variable>
-  <xsl:variable name="afterDot"><xsl:value-of select="substring-after($href,'.')"/></xsl:variable>
+  <xsl:variable name="uptoDot" select="substring-before($href,'.')" as="xs:string"/>
+  <xsl:variable name="afterDot" select="substring-after($href,'.')" as="xs:string"/>
   <xsl:value-of select="$uptoDot"/>
   <xsl:choose>
     <!-- No more periods, so this is at the extension -->
@@ -290,12 +297,7 @@
       </xsl:otherwise>
     </xsl:choose>
   </xsl:template>
-  
-  <xsl:function name="dita-ot:strip-fragment" as="xs:string">
-    <xsl:param name="href" as="xs:string"/>
-    <xsl:value-of select="if (contains($href, '#')) then substring-before($href, '#') else $href"/>
-  </xsl:function>
-  
+
   <!-- Replace file extension in a URI -->
   <xsl:template name="replace-extension" as="xs:string">
     <xsl:param name="filename" as="xs:string"/>
@@ -411,34 +413,7 @@
       select="$n/ancestor-or-self::*[contains(@class, ' topic/topic ')][1]"/>
   </xsl:function>
 
-  <xsl:template name="dita-ot:normalize-uri" as="xs:string">
-    <xsl:param name="src" as="xs:string*"/>
-    <xsl:param name="res" select="()" as="xs:string*"/>
-    
-    <xsl:choose>
-      <xsl:when test="empty($src)">
-        <xsl:value-of select="$res" separator="/"/>
-      </xsl:when>
-      <xsl:when test="$src[1] = '.'">
-        <xsl:call-template name="dita-ot:normalize-uri">
-          <xsl:with-param name="src" select="$src[position() ne 1]"/>
-          <xsl:with-param name="res" select="$res"/>
-        </xsl:call-template>
-      </xsl:when>
-      <xsl:when test="$src[1] = '..' and exists($res) and not($res[position() eq last()] = ('..', ''))">
-        <xsl:call-template name="dita-ot:normalize-uri">
-          <xsl:with-param name="src" select="$src[position() ne 1]"/>
-          <xsl:with-param name="res" select="$res[position() ne last()]"/>
-        </xsl:call-template>
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:call-template name="dita-ot:normalize-uri">
-          <xsl:with-param name="src" select="$src[position() ne 1]"/>
-          <xsl:with-param name="res" select="($res, $src[1])"/>
-        </xsl:call-template>
-      </xsl:otherwise>
-    </xsl:choose>
-  </xsl:template>
+  <xsl:include href="uri-utils.xsl"/>
 
 </xsl:stylesheet>
 

@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!-- This file is part of the DITA Open Toolkit project.
-     See the accompanying license.txt file for applicable licenses.-->
-<!-- (c) Copyright IBM Corp. 2004, 2005 All Rights Reserved. -->
+<!--
+This file is part of the DITA Open Toolkit project.
+
+Copyright 2004, 2005 IBM Corporation
+
+See the accompanying LICENSE file for applicable license.
+-->
 <xsl:stylesheet version="2.0"
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:ditamsg="http://dita-ot.sourceforge.net/ns/200704/ditamsg"
-                exclude-result-prefixes="ditamsg">
+                exclude-result-prefixes="ditamsg xs">
   
   <!-- imagemap -->
   <xsl:template match="*[contains(@class,' ut-d/imagemap ')]" name="topic.ut-d.imagemap">
@@ -56,7 +61,7 @@
             <xsl:attribute name="shape">
               <xsl:value-of select="$shapeval"/>
             </xsl:attribute>
-            <xsl:variable name="shapetest"><xsl:value-of select="concat('-',$shapeval,'-')"/></xsl:variable>
+            <xsl:variable name="shapetest" select="concat('-',$shapeval,'-')" as="xs:string"/>
             <xsl:choose>
               <xsl:when test="contains('--rect-circle-poly-default-',$shapetest)"/>
               <xsl:otherwise>

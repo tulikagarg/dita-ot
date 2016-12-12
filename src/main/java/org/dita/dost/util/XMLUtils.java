@@ -1,6 +1,9 @@
 /*
  * This file is part of the DITA Open Toolkit project.
- * See the accompanying license.txt file for applicable licenses.
+ *
+ * Copyright 2011 Jarno Elovirta
+ *
+ * See the accompanying LICENSE file for applicable license.
  */
 package org.dita.dost.util;
 
@@ -45,6 +48,15 @@ public final class XMLUtils {
 
     /** Private constructor to make class uninstantiable. */
     private XMLUtils() {}
+
+    /** Convert DOM NodeList to List. */
+    public static <T> List<T> toList(final NodeList nodes) {
+        final List<T> res = new ArrayList<>(nodes.getLength());
+        for (int i = 0; i < nodes.getLength(); i++) {
+            res.add((T) nodes.item(i));
+        }
+        return res;
+    }
 
     /**
      * List descendant elements by DITA class.
@@ -331,7 +343,7 @@ public final class XMLUtils {
      */
     public static void transform(final File inputFile, final List<XMLFilter> filters) throws DITAOTException {
         final File outputFile = new File(inputFile.getAbsolutePath() + FILE_EXTENSION_TEMP);
-        transform(inputFile, outputFile, filters);
+        transformFile(inputFile, outputFile, filters);
         try {
             deleteQuietly(inputFile);
             moveFile(outputFile, inputFile);
@@ -350,6 +362,14 @@ public final class XMLUtils {
      * @param filters XML filters to transform file with, may be an empty list
      */
     public static void transform(final File inputFile, final File outputFile, final List<XMLFilter> filters) throws DITAOTException {
+        if (inputFile.equals(outputFile)) {
+            transform(inputFile, filters);
+        } else {
+            transformFile(inputFile, outputFile, filters);
+        }
+    }
+
+    private static void transformFile(final File inputFile, final File outputFile, final List<XMLFilter> filters) throws DITAOTException {
         if (!outputFile.getParentFile().exists() && !outputFile.getParentFile().mkdirs()) {
             throw new DITAOTException("Failed to create output directory " + outputFile.getParentFile().getAbsolutePath());
         }
@@ -384,6 +404,19 @@ public final class XMLUtils {
      * @param filters XML filters to transform file with, may be an empty list
      */
     public static void transform(final URI input, final URI output, final List<XMLFilter> filters) throws DITAOTException {
+        if (input.equals(output)) {
+            transform(input, filters);
+        } else {
+            transformURI(input, output, filters);
+        }
+    }
+
+    private static void transformURI(final URI input, final URI output, final List<XMLFilter> filters) throws DITAOTException {
+        final File outputFile = new File(output);
+        if (!outputFile.getParentFile().exists() && !outputFile.getParentFile().mkdirs()) {
+            throw new DITAOTException("Failed to create output directory " + outputFile.getParentFile().getAbsolutePath());
+        }
+
         InputSource src = null;
         StreamResult result = null;
         try {

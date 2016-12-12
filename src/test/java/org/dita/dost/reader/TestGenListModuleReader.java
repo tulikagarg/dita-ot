@@ -1,10 +1,9 @@
 /*
  * This file is part of the DITA Open Toolkit project.
- * See the accompanying license.txt file for applicable licenses.
- */
-
-/*
- * (c) Copyright IBM Corp. 2010 All Rights Reserved.
+ *
+ * Copyright 2010 IBM Corporation
+ *
+ * See the accompanying LICENSE file for applicable license.
  */
 package org.dita.dost.reader;
 
@@ -62,19 +61,11 @@ public class TestGenListModuleReader {
 
         assertTrue(reader.getConrefTargets().isEmpty());
 
-        assertTrue(reader.getChunkTopicSet().isEmpty());
-
         assertEquals(new HashSet(Arrays.asList(
                 srcDirUri.resolve("topics/xreffin-topic-1.xml"),
                 srcDirUri.resolve("topics/target-topic-c.xml"),
                 srcDirUri.resolve("topics/target-topic-a.xml"))),
                 reader.getHrefTargets());
-
-        assertEquals(new HashSet(Arrays.asList(
-                srcDirUri.resolve("topics/xreffin-topic-1.xml"),
-                srcDirUri.resolve("topics/target-topic-c.xml"),
-                srcDirUri.resolve("topics/target-topic-a.xml"))),
-                reader.getHrefTopicSet());
 
         assertEquals(new HashSet(Arrays.asList(
                 srcDirUri.resolve("topics/xreffin-topic-1.xml"),
@@ -122,13 +113,7 @@ public class TestGenListModuleReader {
 
         assertEquals(new HashSet(Arrays.asList(
                 srcDirUri.resolve("maps/toolbars.dita"))),
-                reader.getChunkTopicSet());
-
-        assertEquals(new HashSet(Arrays.asList(
-                srcDirUri.resolve("maps/toolbars.dita"))),
                 reader.getHrefTargets());
-
-        assertTrue(reader.getHrefTopicSet().isEmpty());
 
         assertEquals(new HashSet(Arrays.asList(
                 srcDirUri.resolve("maps/toolbars.dita"))),

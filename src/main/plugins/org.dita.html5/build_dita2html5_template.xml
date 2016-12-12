@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- This file is part of the DITA Open Toolkit project.
-     See the accompanying license.txt file for applicable licenses.-->
+<!--
+This file is part of the DITA Open Toolkit project.
+
+Copyright 2015 Jarno Elovirta
+
+See the accompanying LICENSE file for applicable license.
+-->
 <project xmlns:dita="http://dita-ot.sourceforge.net" name="dita2html5">
 
   <target name="dita2html5"
@@ -137,16 +142,14 @@
   <target name="html5.topics.common" unless="noTopic" if="old.transform">
     <html5.topics>
       <dita:extension id="dita.conductor.html5.param" behavior="org.dita.dost.platform.InsertAction"/>
+      <mapper classname="org.dita.dost.util.JobMapper" to="${out.ext}"/>
     </html5.topics>
   </target>
 
   <target name="html5.topics.common.inner" unless="noTopic" if="inner.transform">
     <html5.topics>
       <dita:extension id="dita.conductor.html5.param" behavior="org.dita.dost.platform.InsertAction"/>
-      <!--New,To generate&copy all dita files in the inputmap.dir,not all files in dita.temp.dir -->
-      <mapper type="regexp"
-              from="^(${tempdirToinputmapdir.relative.value})(.*?)(\.(\w+))$$"
-              to="\2${out.ext}"/>
+      <mapper classname="org.dita.dost.util.JobMapper" to="${out.ext}"/>
     </html5.topics>
   </target>
 
@@ -176,16 +179,16 @@
   <macrodef name="html5.topics">
     <element name="params" optional="true" implicit="true"/>
     <sequential>
+      <pipeline message="Convert DITA topic to HTML5" taskname="xslt">
       <xslt basedir="${dita.temp.dir}"
             destdir="${output.dir}"
-            includesfile="${dita.temp.dir}${file.separator}${fullditatopicfile}"
             reloadstylesheet="${dita.xhtml.reloadstylesheet}"
             classpathref="dost.class.path"
             extension="${out.ext}"
             style="${args.xsl}"
             filenameparameter="FILENAME"
             filedirparameter="FILEDIR">
-        <excludesfile name="${dita.temp.dir}${file.separator}${resourceonlyfile}" if="resourceonlyfile"/>
+        <ditaFileset format="dita" processingRole="normal"/>
         <param name="FILTERFILE" expression="${dita.input.valfile.url}" if="dita.input.valfile"/>
         <param name="CSS" expression="${args.css.file}" if="args.css.file"/>
         <param name="CSSPATH" expression="${user.csspath}" if="user.csspath"/>
@@ -208,6 +211,7 @@
         <params/>
         <xmlcatalog refid="dita.catalog"/>
       </xslt>
+      </pipeline>
     </sequential>
   </macrodef>
 
@@ -218,21 +222,22 @@
       <condition property="html5.toc.output.dir" value="${output.dir}" else="${_dita.map.output.dir}">
         <isset property="inner.transform"/>
       </condition>
+      <pipeline message="Convert DITA map to HTML5" taskname="xslt">
       <xslt basedir="${dita.temp.dir}"
             destdir="${html5.toc.output.dir}"
             includesfile="${dita.temp.dir}${file.separator}${user.input.file.listfile}"
             classpathref="dost.class.path"
             style="${args.html5.toc.xsl}">
-        <excludesfile name="${dita.temp.dir}${file.separator}${resourceonlyfile}" if="resourceonlyfile"/>
         <param name="OUTEXT" expression="${out.ext}" if="out.ext"/>
         <param name="contenttarget" expression="${args.html5.contenttarget}" if="args.html5.contenttarget"/>
         <param name="CSS" expression="${args.css.file}" if="args.css.file"/>
         <param name="CSSPATH" expression="${user.csspath}" if="user.csspath"/>
         <param name="OUTPUTCLASS" expression="${args.html5.toc.class}" if="args.html5.toc.class"/>
         <params/>
-        <mergemapper to="${args.html5.toc}${out.ext}"/>
+        <mapper type="merge" to="${args.html5.toc}${out.ext}"/>
         <xmlcatalog refid="dita.catalog"/>
       </xslt>
+      </pipeline>
     </sequential>
   </macrodef>
 

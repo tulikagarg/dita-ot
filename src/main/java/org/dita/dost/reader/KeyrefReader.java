@@ -1,10 +1,10 @@
 /*
  * This file is part of the DITA Open Toolkit project.
- * See the accompanying license.txt file for applicable licenses.
- */
+ *
+ * Copyright 2010 IBM Corporation
+ *
+ * See the accompanying LICENSE file for applicable license.
 
-/*
- * (c) Copyright IBM Corp. 2010 All Rights Reserved.
  */
 package org.dita.dost.reader;
 
@@ -96,8 +96,9 @@ public final class KeyrefReader implements AbstractReader {
      * Read key definitions
      * 
      * @param filename absolute URI to DITA map with key definitions
+     * @param doc key definition DITA map
      */
-    public void read(final URI filename, final Document doc) throws DITAOTException {
+    public void read(final URI filename, final Document doc) {
         currentFile = filename;
         rootScope = null;
         // TODO: use KeyScope implementation that retains order
@@ -193,7 +194,9 @@ public final class KeyrefReader implements AbstractReader {
                     final URI href = h.isEmpty() ? null : toURI(h);
                     final String s = copy.getAttribute(ATTRIBUTE_NAME_SCOPE);
                     final String scope = s.isEmpty() ? null : s;
-                    final KeyDef keyDef = new KeyDef(key, href, scope, currentFile, copy);
+                    final String f = copy.getAttribute(ATTRIBUTE_NAME_FORMAT);
+                    final String format = f.isEmpty() ? null : f;
+                    final KeyDef keyDef = new KeyDef(key, href, scope, format, currentFile, copy);
                     keyDefs.put(key, keyDef);
                 }
             }
@@ -204,7 +207,7 @@ public final class KeyrefReader implements AbstractReader {
     private KeyScope cascadeChildKeys(final KeyScope rootScope) {
         final Map<String, KeyDef> res = new HashMap<>(rootScope.keyDefinition);
         cascadeChildKeys(rootScope, res, "");
-        return new KeyScope(rootScope.name, res, new ArrayList<>(rootScope.childScopes.values()));
+        return new KeyScope(rootScope.name, res, new ArrayList<>(rootScope.childScopes));
     }
     private void cascadeChildKeys(final KeyScope scope, final Map<String, KeyDef> keys, final String prefix) {
         final StringBuilder buf = new StringBuilder(prefix);
@@ -214,12 +217,12 @@ public final class KeyrefReader implements AbstractReader {
         final String p = buf.toString();
         for (final Map.Entry<String, KeyDef> e: scope.keyDefinition.entrySet()) {
             final KeyDef oldKeyDef = e.getValue();
-            final KeyDef newKeyDef = new KeyDef(p + oldKeyDef.keys, oldKeyDef.href, oldKeyDef.scope, oldKeyDef.source, oldKeyDef.element);
+            final KeyDef newKeyDef = new KeyDef(p + oldKeyDef.keys, oldKeyDef.href, oldKeyDef.scope, oldKeyDef.format, oldKeyDef.source, oldKeyDef.element);
             if (!keys.containsKey(newKeyDef.keys)) {
                 keys.put(newKeyDef.keys, newKeyDef);
             }
         }
-        for (final KeyScope child: scope.childScopes.values()) {
+        for (final KeyScope child: scope.childScopes) {
             cascadeChildKeys(child, keys, p);
         }
     }
@@ -237,7 +240,7 @@ public final class KeyrefReader implements AbstractReader {
             resKeys.putAll(current.keyDefinition);
             resKeys.putAll(parent);
             final List<KeyScope> resChildren = new ArrayList<>();
-            for (final KeyScope child: current.childScopes.values()) {
+            for (final KeyScope child: current.childScopes) {
                 final KeyScope resChild = inheritParentKeys(child, resKeys);
                 resChildren.add(resChild);
             }
@@ -246,14 +249,14 @@ public final class KeyrefReader implements AbstractReader {
     }
 
     /** Resolve intermediate key references. */
-    private KeyScope resolveIntermediate(final KeyScope scope) throws DITAOTException {
+    private KeyScope resolveIntermediate(final KeyScope scope) {
         final Map<String, KeyDef> keys = new HashMap<>(scope.keyDefinition);
         for (final Map.Entry<String, KeyDef> e: scope.keyDefinition.entrySet()) {
             final KeyDef res = resolveIntermediate(scope, e.getValue(), Arrays.asList(e.getValue()));
             keys.put(e.getKey(), res);
         }
         final List<KeyScope> children = new ArrayList<>();
-        for (final KeyScope child: scope.childScopes.values()) {
+        for (final KeyScope child: scope.childScopes) {
             final KeyScope resolvedChild = resolveIntermediate(child);
             children.add(resolvedChild);
         }
@@ -280,7 +283,7 @@ public final class KeyrefReader implements AbstractReader {
             }
             final Element res = mergeMetadata(keyRefDef.element, elem);
             res.removeAttribute(ATTRIBUTE_NAME_KEYREF);
-            return new KeyDef(keyDef.keys, keyRefDef.href, keyRefDef.scope, keyRefDef.source, res);
+            return new KeyDef(keyDef.keys, keyRefDef.href, keyRefDef.scope, keyRefDef.format, keyRefDef.source, res);
         } else {
             return keyDef;
         }

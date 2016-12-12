@@ -1,9 +1,13 @@
 /*
  * This file is part of the DITA Open Toolkit project.
- * See the accompanying license.txt file for applicable licenses.
+ *
+ * Copyright 2011 Jarno Elovirta
+ *
+ * See the accompanying LICENSE file for applicable license.
  */
 package org.dita.dost.util;
 
+import static org.dita.dost.util.Configuration.configuration;
 import static org.dita.dost.util.Constants.*;
 import static org.dita.dost.util.URLUtils.*;
 
@@ -70,7 +74,6 @@ public final class Job {
     private static final String ATTRIBUTE_RESOURCE_ONLY = "resource-only";
     private static final String ATTRIBUTE_TARGET = "target";
     private static final String ATTRIBUTE_CONREF_TARGET = "conref-target";
-    private static final String ATTRIBUTE_NON_CONREF_TARGET = "non-conref-target";
     private static final String ATTRIBUTE_CONREF_PUSH = "conrefpush";
     private static final String ATTRIBUTE_SUBJECT_SCHEME = "subjectscheme";
     private static final String ATTRIBUTE_HAS_LINK = "has-link";
@@ -79,7 +82,6 @@ public final class Job {
     private static final String ATTRIBUTE_CHUNKED_DITAMAP_LIST = "chunked-ditamap";
     private static final String ATTRIBUTE_FLAG_IMAGE_LIST = "flag-image";
     private static final String ATTRIBUTE_SUBSIDIARY_TARGET_LIST = "subtarget";
-    private static final String ATTRIBUTE_CHUNK_TOPIC_LIST = "skip-chunk";
     
     private static final String PROPERTY_OUTER_CONTROL = ANT_INVOKER_EXT_PARAM_OUTTERCONTROL;
     private static final String PROPERTY_ONLY_TOPIC_IN_MAP = ANT_INVOKER_EXT_PARAM_ONLYTOPICINMAP;
@@ -108,13 +110,11 @@ public final class Job {
             attrToFieldMap.put(ATTRIBUTE_HAS_CODEREF, FileInfo.class.getField("hasCoderef"));    
             attrToFieldMap.put(ATTRIBUTE_RESOURCE_ONLY, FileInfo.class.getField("isResourceOnly"));    
             attrToFieldMap.put(ATTRIBUTE_TARGET, FileInfo.class.getField("isTarget"));
-            attrToFieldMap.put(ATTRIBUTE_NON_CONREF_TARGET, FileInfo.class.getField("isNonConrefTarget"));    
             attrToFieldMap.put(ATTRIBUTE_CONREF_PUSH, FileInfo.class.getField("isConrefPush"));    
             attrToFieldMap.put(ATTRIBUTE_SUBJECT_SCHEME, FileInfo.class.getField("isSubjectScheme"));
             attrToFieldMap.put(ATTRIBUTE_OUT_DITA_FILES_LIST, FileInfo.class.getField("isOutDita"));
             attrToFieldMap.put(ATTRIBUTE_FLAG_IMAGE_LIST, FileInfo.class.getField("isFlagImage"));
             attrToFieldMap.put(ATTRIBUTE_SUBSIDIARY_TARGET_LIST, FileInfo.class.getField("isSubtarget"));
-            attrToFieldMap.put(ATTRIBUTE_CHUNK_TOPIC_LIST, FileInfo.class.getField("isSkipChunk"));
         } catch (final NoSuchFieldException e) {
             throw new RuntimeException(e);
         }
@@ -122,6 +122,7 @@ public final class Job {
     
     private final Map<String, Object> prop;
     public final File tempDir;
+    public final URI tempDirURI;
     private final File jobFile;
     private final ConcurrentMap<URI, FileInfo> files = new ConcurrentHashMap<>();
     private long lastModified;
@@ -138,9 +139,15 @@ public final class Job {
             throw new IllegalArgumentException("Temporary directory " + tempDir + " must be absolute");
         }
         this.tempDir = tempDir;
+        tempDirURI = tempDir.toURI();
         jobFile = new File(tempDir, JOB_FILE);
         prop = new HashMap<>();
         read();
+        for (Map.Entry<String, String> e : configuration.entrySet()) {
+            if (!prop.containsKey(e.getKey())) {
+                prop.put(e.getKey(), e.getValue());
+            }
+        }
     }
 
     /**
@@ -504,7 +511,7 @@ public final class Job {
             return null;
         } else if (files.containsKey(file)) {
             return files.get(file);
-        } else if (file.isAbsolute() && file.toString().startsWith(tempDir.toURI().toString())) {
+        } else if (file.isAbsolute() && file.toString().startsWith(tempDirURI.toString())) {
             final URI relative = getRelativePath(jobFile.toURI(), file);
             return files.get(relative);
         } else {
@@ -524,12 +531,12 @@ public final class Job {
         assert file.getFragment() == null;
         URI f = file.normalize();
         if (f.isAbsolute()) {
-            f = tempDir.toURI().relativize(f);
+            f = tempDirURI.relativize(f);
         }
         FileInfo i = getFileInfo(file);
         if (i == null) {
             i = new FileInfo(f);
-            files.put(i.uri, i);
+            add(i);
         }
         return i;
     }
@@ -541,7 +548,7 @@ public final class Job {
      */
     public void addAll(final Collection<FileInfo> fs) {
     	for (final FileInfo f: fs) {
-    		files.put(f.uri, f);
+    		add(f);
     	}
     }
         
@@ -570,8 +577,6 @@ public final class Job {
         public boolean isResourceOnly;
         /** File is a link target. */
         public boolean isTarget;
-        /** File is a target in non-conref link. */
-        public boolean isNonConrefTarget;
         /** File is a push conref source. */
         public boolean isConrefPush;
         /** File has a keyref. */
@@ -580,8 +585,6 @@ public final class Job {
         public boolean hasCoderef;
         /** File is a subject scheme. */
         public boolean isSubjectScheme;
-        /** File is a target in conref link. Opposite of {@link #isNonConrefTarget}. */
-        public boolean isSkipChunk;
         /** File is a coderef target. */
         public boolean isSubtarget;
         /** File is a flagging image. */
@@ -625,12 +628,10 @@ public final class Job {
                     ", hasLink=" + hasLink +
                     ", isResourceOnly=" + isResourceOnly +
                     ", isTarget=" + isTarget +
-                    ", isNonConrefTarget=" + isNonConrefTarget +
                     ", isConrefPush=" + isConrefPush +
                     ", hasKeyref=" + hasKeyref +
                     ", hasCoderef=" + hasCoderef +
                     ", isSubjectScheme=" + isSubjectScheme +
-                    ", isSkipChunk=" + isSkipChunk +
                     ", isSubtarget=" + isSubtarget +
                     ", isFlagImage=" + isFlagImage +
                     ", isOutDita=" + isOutDita +
@@ -655,12 +656,10 @@ public final class Job {
             private boolean hasLink;
             private boolean isResourceOnly;
             private boolean isTarget;
-            private boolean isNonConrefTarget;
             private boolean isConrefPush;
             private boolean hasKeyref;
             private boolean hasCoderef;
             private boolean isSubjectScheme;
-            private boolean isSkipChunk;
             private boolean isSubtarget;
             private boolean isFlagImage;
             private boolean isOutDita;
@@ -677,12 +676,10 @@ public final class Job {
                 hasLink = orig.hasLink;
                 isResourceOnly = orig.isResourceOnly;
                 isTarget = orig.isTarget;
-                isNonConrefTarget = orig.isNonConrefTarget;
                 isConrefPush = orig.isConrefPush;
                 hasKeyref = orig.hasKeyref;
                 hasCoderef = orig.hasCoderef;
                 isSubjectScheme = orig.isSubjectScheme;
-                isSkipChunk = orig.isSkipChunk;
                 isSubtarget = orig.isSubtarget;
                 isFlagImage = orig.isFlagImage;
                 isOutDita = orig.isOutDita;
@@ -702,12 +699,10 @@ public final class Job {
                 if (orig.hasLink) hasLink = orig.hasLink;
                 if (orig.isResourceOnly) isResourceOnly = orig.isResourceOnly;
                 if (orig.isTarget) isTarget = orig.isTarget;
-                if (orig.isNonConrefTarget) isNonConrefTarget = orig.isNonConrefTarget;
                 if (orig.isConrefPush) isConrefPush = orig.isConrefPush;
                 if (orig.hasKeyref) hasKeyref = orig.hasKeyref;
                 if (orig.hasCoderef) hasCoderef = orig.hasCoderef;
                 if (orig.isSubjectScheme) isSubjectScheme = orig.isSubjectScheme;
-                if (orig.isSkipChunk) isSkipChunk = orig.isSkipChunk;
                 if (orig.isSubtarget) isSubtarget = orig.isSubtarget;
                 if (orig.isFlagImage) isFlagImage = orig.isFlagImage;
                 if (orig.isOutDita) isOutDita = orig.isOutDita;
@@ -724,12 +719,10 @@ public final class Job {
             public Builder hasLink(final boolean hasLink) { this.hasLink = hasLink; return this; }
             public Builder isResourceOnly(final boolean isResourceOnly) { this.isResourceOnly = isResourceOnly; return this; }
             public Builder isTarget(final boolean isTarget) { this.isTarget = isTarget; return this; }
-            public Builder isNonConrefTarget(final boolean isNonConrefTarget) { this.isNonConrefTarget = isNonConrefTarget; return this; }
             public Builder isConrefPush(final boolean isConrefPush) { this.isConrefPush = isConrefPush; return this; }
             public Builder hasKeyref(final boolean hasKeyref) { this.hasKeyref = hasKeyref; return this; }
             public Builder hasCoderef(final boolean hasCoderef) { this.hasCoderef = hasCoderef; return this; }
             public Builder isSubjectScheme(final boolean isSubjectScheme) { this.isSubjectScheme = isSubjectScheme; return this; }
-            public Builder isSkipChunk(final boolean isSkipChunk) { this.isSkipChunk = isSkipChunk; return this; }
             public Builder isSubtarget(final boolean isSubtarget) { this.isSubtarget = isSubtarget; return this; }
             public Builder isFlagImage(final boolean isFlagImage) { this.isFlagImage = isFlagImage; return this; }
             public Builder isOutDita(final boolean isOutDita) { this.isOutDita = isOutDita; return this; }
@@ -748,12 +741,10 @@ public final class Job {
                 fi.hasLink = hasLink;
                 fi.isResourceOnly = isResourceOnly;
                 fi.isTarget = isTarget;
-                fi.isNonConrefTarget = isNonConrefTarget;
                 fi.isConrefPush = isConrefPush;
                 fi.hasKeyref = hasKeyref;
                 fi.hasCoderef = hasCoderef;
                 fi.isSubjectScheme = isSubjectScheme;
-                fi.isSkipChunk = isSkipChunk;
                 fi.isSubtarget = isSubtarget;
                 fi.isFlagImage = isFlagImage;
                 fi.isOutDita = isOutDita;

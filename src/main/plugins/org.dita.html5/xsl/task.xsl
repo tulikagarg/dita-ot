@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- This file is part of the DITA Open Toolkit project.
-     See the accompanying license.txt file for applicable licenses. -->
+<!--
+This file is part of the DITA Open Toolkit project.
+
+Copyright 2016 Jarno Elovirta
+
+See the accompanying LICENSE file for applicable license.
+-->
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:dita-ot="http://dita-ot.sourceforge.net/ns/201007/dita-ot"
@@ -689,9 +694,8 @@
     <xsl:param name="use-label"/>
     <xsl:if test="$GENERATE-TASK-LABELS='YES'">
       <xsl:variable name="headLevel">
-        <xsl:variable name="headCount">
-          <xsl:value-of select="count(ancestor::*[contains(@class,' topic/topic ')])+1"/>
-        </xsl:variable>
+        <xsl:variable name="headCount" select="count(ancestor::*[contains(@class,' topic/topic ')]) + 1"
+          as="xs:integer"/>
         <xsl:choose>
           <xsl:when test="$headCount > 6">h6</xsl:when>
           <xsl:otherwise>h<xsl:value-of select="$headCount"/></xsl:otherwise>

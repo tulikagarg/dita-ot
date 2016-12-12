@@ -1,10 +1,9 @@
 /*
  * This file is part of the DITA Open Toolkit project.
- * See the accompanying license.txt file for applicable licenses.
- */
-
-/*
- * (c) Copyright IBM Corp. 2010 All Rights Reserved.
+ *
+ * Copyright 2010 IBM Corporation
+ *
+ * See the accompanying LICENSE file for applicable license.
  */
 package org.dita.dost.reader;
 
@@ -388,7 +387,6 @@ public class TestKeyrefReader {
         assertNull(b.get("g"));
         // FIXME
 //        assertEquals("g", b.get("B-2.g").element.getAttribute("id"));
-
     }
 
     @Test
@@ -499,12 +497,35 @@ public class TestKeyrefReader {
         assertEquals("two.dita", n.get("root.nested.test2").href.toString());
     }
 
+    @Test
+    public void testDuplicateScopeNames() throws DITAOTException {
+        final File filename = new File(srcDir, "duplicate.ditamap");
+
+        final KeyrefReader keyrefreader = new KeyrefReader();
+        keyrefreader.read(filename.toURI(), readMap(filename));
+        final KeyScope root = keyrefreader.getKeyDefinition();
+
+        assertEquals(1, root.keySet().size());
+
+        final KeyScope r = root.childScopes.get(0);
+        assertEquals("A", r.name);
+        assertEquals(2, r.keySet().size());
+        assertEquals("def1", r.get("a").element.getAttribute("id"));
+        assertEquals("def1", r.get("A.a").element.getAttribute("id"));
+
+        final KeyScope d = root.childScopes.get(1);
+        assertEquals("A", d.name);
+        assertEquals(2, d.keySet().size());
+        assertEquals("def2", d.get("a").element.getAttribute("id"));
+        assertEquals("def1", d.get("A.a").element.getAttribute("id"));
+    }
+
     private void log(final KeyScope scope, final String indent) {
         System.err.println(indent + "scope: " + scope.name);
         for (final Map.Entry<String, KeyDef> key : scope.keyDefinition.entrySet()) {
             System.err.println(indent + " * " + key.getKey() + "=" + key.getValue().href);
         }
-        for (final KeyScope child : scope.childScopes.values()) {
+        for (final KeyScope child : scope.childScopes) {
             log(child, indent + "  ");
         }
     }

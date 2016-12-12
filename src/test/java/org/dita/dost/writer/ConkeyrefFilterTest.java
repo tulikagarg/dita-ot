@@ -1,3 +1,10 @@
+/*
+ * This file is part of the DITA Open Toolkit project.
+ *
+ * Copyright 2013 Jarno Elovirta
+ *
+ * See the accompanying LICENSE file for applicable license.
+ */
 package org.dita.dost.writer;
 
 import static javax.xml.XMLConstants.NULL_NS_URI;
@@ -33,7 +40,7 @@ public class ConkeyrefFilterTest {
     @Test
     public void testKey() throws SAXException, IOException {
         final ConkeyrefFilter f = getConkeyrefFilter();
-        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("library.dita"), ATTR_SCOPE_VALUE_LOCAL, toURI("main.ditamap"), null))));
+        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("library.dita"), ATTR_SCOPE_VALUE_LOCAL, ATTR_FORMAT_VALUE_DITA, toURI("main.ditamap"), null))));
         f.setContentHandler(new DefaultHandler() {
             @Override
             public void startElement(final String uri, final String localName, final String qName, final Attributes atts) throws SAXException {
@@ -49,7 +56,7 @@ public class ConkeyrefFilterTest {
     @Test
     public void testKeyAndElement() throws SAXException, IOException {
         final ConkeyrefFilter f = getConkeyrefFilter();
-        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("library.dita"), ATTR_SCOPE_VALUE_LOCAL, toURI("main.ditamap"), null))));
+        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("library.dita"), ATTR_SCOPE_VALUE_LOCAL, ATTR_FORMAT_VALUE_DITA, toURI("main.ditamap"), null))));
         f.setContentHandler(new DefaultHandler() {
             @Override
             public void startElement(final String uri, final String localName, final String qName, final Attributes atts) throws SAXException {
@@ -66,7 +73,7 @@ public class ConkeyrefFilterTest {
     @Test
     public void testElementInTarget() throws SAXException, IOException {
         final ConkeyrefFilter f = getConkeyrefFilter();
-        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("library.dita#baz"), ATTR_SCOPE_VALUE_LOCAL, toURI("main.ditamap"), null))));
+        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("library.dita#baz"), ATTR_SCOPE_VALUE_LOCAL, ATTR_FORMAT_VALUE_DITA, toURI("main.ditamap"), null))));
         f.setContentHandler(new DefaultHandler() {
             @Override
             public void startElement(final String uri, final String localName, final String qName, final Attributes atts) throws SAXException {
@@ -83,7 +90,7 @@ public class ConkeyrefFilterTest {
     public void testRelativePaths() throws SAXException, IOException {
         final ConkeyrefFilter f = getConkeyrefFilter();
         f.setCurrentFile(new File("product/sub folder/this.dita").getAbsoluteFile().toURI());
-        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("common/library.dita"), ATTR_SCOPE_VALUE_LOCAL, toURI("main.ditamap"), null))));
+        f.setKeyDefinitions(new KeyScope(toMap(new KeyDef("foo", toURI("common/library.dita"), ATTR_SCOPE_VALUE_LOCAL, ATTR_FORMAT_VALUE_DITA, toURI("main.ditamap"), null))));
         f.setContentHandler(new DefaultHandler() {
             @Override
             public void startElement(final String uri, final String localName, final String qName, final Attributes atts) throws SAXException {

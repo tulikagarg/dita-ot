@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!-- This file is part of the DITA Open Toolkit project.
-     See the accompanying license.txt file for applicable licenses.-->
-<!-- (c) Copyright IBM Corp. 2004, 2006 All Rights Reserved. -->
+<!--
+This file is part of the DITA Open Toolkit project.
+
+Copyright 2004, 2006 IBM Corporation
+
+See the accompanying LICENSE file for applicable license.
+-->
 <!-- Refactoring completed March and April 2007. The code now contains 
      numerous hooks that can be overridden using modes. Specifically,
      the most important modes will be those that control what is inherited or
@@ -977,6 +981,7 @@ Other modes can be found within the code, and may or may not prove useful for ov
     <xsl:param name="topicid" as="xs:string"/>
     <xsl:param name="classval" as="xs:string"/>
     <xsl:param name="doc" as="document-node()?"/>
+    <xsl:variable name="map-uri" as="xs:anyURI" select="base-uri(.)"/>
     <xsl:choose>
       <xsl:when test="*[contains(@class, ' map/topicmeta ')]/*[contains(@class, ' map/shortdesc ')]">
         <xsl:apply-templates select="." mode="mappull:add-usershortdesc-PI"/>
@@ -996,7 +1001,9 @@ Other modes can be found within the code, and may or may not prove useful for ov
           <xsl:apply-templates select="." mode="mappull:add-genshortdesc-PI"/>
           <shortdesc class="- map/shortdesc ">
             <xsl:apply-templates select="($target[contains(@class, $classval)])[1]/*[contains(@class, ' topic/shortdesc ')] |
-                                         ($target[contains(@class, $classval)])[1]/*[contains(@class, ' topic/abstract ')]/*[contains(@class, ' topic/shortdesc ')]" mode="copy-shortdesc"/>
+                                         ($target[contains(@class, $classval)])[1]/*[contains(@class, ' topic/abstract ')]/*[contains(@class, ' topic/shortdesc ')]" mode="copy-shortdesc">
+              <xsl:with-param name="map-uri" select="$map-uri" tunnel="yes"/>
+            </xsl:apply-templates>
           </shortdesc>
         </xsl:if>
       </xsl:when>
@@ -1010,7 +1017,9 @@ Other modes can be found within the code, and may or may not prove useful for ov
             <xsl:apply-templates
               select="($doc//*[contains(@class, ' topic/topic ')])[1]/*[contains(@class, ' topic/shortdesc ')]|
                       ($doc//*[contains(@class, ' topic/topic ')])[1]/*[contains(@class, ' topic/abstract ')]/*[contains(@class, ' topic/shortdesc ')]"
-              mode="copy-shortdesc"/>
+              mode="copy-shortdesc">
+              <xsl:with-param name="map-uri" select="$map-uri" tunnel="yes"/>
+            </xsl:apply-templates>
           </shortdesc>
         </xsl:if>
       </xsl:when>
@@ -1137,62 +1146,32 @@ Other modes can be found within the code, and may or may not prove useful for ov
     </xsl:copy>
   </xsl:template>
   
-  <xsl:template match="*[contains(@class,' topic/xref ')]"
-    mode="copy-shortdesc">
-    <xsl:choose>
-      <xsl:when
-        test="not(@href) or @scope='peer' or @scope='external'">
-        <xsl:copy>
-          <xsl:apply-templates select="@*|text()|*|comment()|processing-instruction()"
-            mode="copy-shortdesc" />
-        </xsl:copy>
-      </xsl:when>
-      <xsl:when
-        test="@format and not(@format='dita')">
-        <xsl:copy>
-          <xsl:apply-templates select="@*|text()|*|comment()|processing-instruction()"
-            mode="copy-shortdesc" />
-        </xsl:copy>
-      </xsl:when>
-      <xsl:when test="not(contains(@href,'/'))"><!-- May be DITA, but in the same directory -->
-        <xsl:copy>
-          <xsl:apply-templates select="@*|text()|*|comment()|processing-instruction()"
-            mode="copy-shortdesc" />
-        </xsl:copy>
-      </xsl:when>
-      <xsl:when test="text()|*[not(contains(@class,' topic/desc '))]">
-        <xsl:apply-templates
-          select="*[not(contains(@class,' topic/desc '))]|text()|comment()|processing-instruction()"
-          mode="copy-shortdesc" />
-      </xsl:when>
-      <xsl:otherwise>
-        <xsl:text>***</xsl:text><!-- go get the target text -->
-      </xsl:otherwise>
-    </xsl:choose>
-  </xsl:template>
-  
   <xsl:template match="text()" mode="copy-shortdesc" as="xs:string">
-    <xsl:value-of select="translate(.,'&#xA;',' ')" />
+    <xsl:value-of select="translate(.,'&#xA;',' ')"/>
   </xsl:template>
 
-
-  <xsl:template match="*[contains(@class,' topic/shortdesc ')]"
-    mode="copy-shortdesc">
+  <xsl:template match="*[contains(@class,' topic/shortdesc ')]" mode="copy-shortdesc">
     <xsl:if test="preceding-sibling::*[contains(@class,' topic/shortdesc ')]">
       <!-- In an abstract, and this is not the first -->
       <xsl:text> </xsl:text>
     </xsl:if>
-    <xsl:apply-templates select="*|text()|comment()|processing-instruction()" mode="copy-shortdesc" />
+    <xsl:apply-templates select="node()" mode="copy-shortdesc"/>
   </xsl:template>
   
-  <xsl:template match="@id" mode="copy-shortdesc" />
+  <xsl:template match="@id" mode="copy-shortdesc"/>
   
-  <xsl:template match="*[contains(@class,' topic/indexterm ')]"
-    mode="copy-shortdesc" />
+  <xsl:template match="@href" mode="copy-shortdesc">
+    <xsl:param name="map-uri" as="xs:anyURI?" tunnel="yes"/>
+    <xsl:variable name="abs-href" select="resolve-uri(., base-uri(.))" as="xs:anyURI"/>
+    <xsl:variable name="href" select="dita-ot:relativize($map-uri, $abs-href)" as="xs:anyURI"/>
+    <xsl:attribute name="{name()}" select="$href"/>
+  </xsl:template>
   
-  <xsl:template match="*|@*|comment()|processing-instruction()" mode="copy-shortdesc">
+  <xsl:template match="*[contains(@class,' topic/indexterm ')]" mode="copy-shortdesc" />
+  
+  <xsl:template match="@* | node()" mode="copy-shortdesc" name="copy-shortdesc" priority="-10">
     <xsl:copy>
-      <xsl:apply-templates select="@*|text()|*|comment()|processing-instruction()" mode="copy-shortdesc" />
+      <xsl:apply-templates select="@* | node()" mode="copy-shortdesc"/>
     </xsl:copy>
   </xsl:template>
 
